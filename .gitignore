@@ -37,3 +37,12 @@ var/
 # 系统相关文件
 .DS_Store
 Thumbs.db 
+
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bz2
+*.wim
+*.iso
