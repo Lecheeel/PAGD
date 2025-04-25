@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体态分析报告</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Animate.css 动画库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- AOS 滚动动画库 -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 暗黑模式切换样式 -->
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #2E8B57;
+            --text-color: #333;
+            --bg-color: #f8f9fa;
+            --card-bg: #fff;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .dark-mode {
+            --primary-color: #00a86b;
+            --secondary-color: #2E8B57;
+            --text-color: #e0e0e0;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            box-shadow: var(--card-shadow);
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            border-bottom: none;
+            padding: 1rem 1.5rem;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: 30px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        /* 深色模式切换按钮样式 */
+        #dark-mode-toggle {
+            width: 45px;
+            height: 45px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--card-bg);
+            box-shadow: var(--card-shadow);
+            border: none;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        #dark-mode-toggle:hover {
+            transform: rotate(15deg);
+        }
+        
+        #dark-mode-toggle i {
+            font-size: 1.3rem;
+            color: var(--text-color);
+        }
+        
+        .dark-mode #dark-mode-toggle i {
+            color: #ffc107;
+        }
+        
+        /* 评估结果图表容器 */
+        .chart-container {
+            height: 300px;
+            margin-bottom: 2rem;
+        }
+        
+        /* 报告卡片样式 */
+        .report-card {
+            transition: transform 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+        
+        .report-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* 评分指示器 */
+        .score-indicator {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .score-indicator::after {
+            content: '';
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            border: 2px dashed rgba(255,255,255,0.5);
+        }
+        
+        .score-low {
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+        }
+        
+        .score-medium {
+            background: linear-gradient(135deg, #ffb300, #fb8c00);
+        }
+        
+        .score-high {
+            background: linear-gradient(135deg, #e53935, #c62828);
+        }
+        
+        /* 评估详情条目样式 */
+        .assessment-item {
+            border-left: 4px solid transparent;
+            padding-left: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 10px 10px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .assessment-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .assessment-item.normal {
+            border-left-color: #4CAF50;
+        }
+        
+        .assessment-item.mild {
+            border-left-color: #FFC107;
+        }
+        
+        .assessment-item.moderate {
+            border-left-color: #FF9800;
+        }
+        
+        .assessment-item.severe {
+            border-left-color: #DC3545;
+        }
+        
+        /* 进度条样式 */
+        .progress-slim {
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        /* 测量数据范围指示器 */
+        .range-indicator {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            position: relative;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .range-normal {
+            position: absolute;
+            height: 100%;
+            background-color: rgba(76, 175, 80, 0.3);
+            border: 1px dashed #4CAF50;
+        }
+        
+        .range-value {
+            position: absolute;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background-color: #dc3545;
+            transform: translateX(-50%);
+        }
+        
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+        
+        /* 左右倾斜指示器 */
+        .leaning-indicator {
+            width: 80%;
+            height: 60px;
+            margin: 15px auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .leaning-base {
+            width: 60%;
+            height: 10px;
+            background-color: #e9ecef;
+            position: relative;
+        }
+        
+        .leaning-body {
+            width: 4px;
+            height: 40px;
+            background-color: #6c757d;
+            position: absolute;
+            bottom: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .leaning-left .leaning-body {
+            transform: rotate(-15deg);
+            transform-origin: bottom center;
+        }
+        
+        .leaning-right .leaning-body {
+            transform: rotate(15deg);
+            transform-origin: bottom center;
+        }
+        
+        .leaning-feet {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            position: absolute;
+            bottom: 0;
+        }
+        
+        .leaning-foot {
+            width: 10px;
+            height: 5px;
+            background-color: #6c757d;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mode-toggle position-fixed" style="top: 10px; right: 10px; z-index: 1000;">
+        <button class="btn btn-sm rounded-circle" id="dark-mode-toggle">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <header class="bg-dark text-white p-3 mb-4 animate__animated animate__fadeIn">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-file-medical-alt me-2"></i>体态分析报告</h1>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-1"></i>返回首页
+                </a>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- 报告概览部分 -->
+        <div class="row" data-aos="fade-up">
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>体态评估概览</h2>
+                            <div>
+                                <button class="btn btn-sm btn-primary me-2" id="btn-print-report">
+                                    <i class="fas fa-print me-1"></i>打印报告
+                                </button>
+                                <button class="btn btn-sm btn-success" id="btn-download-report">
+                                    <i class="fas fa-download me-1"></i>下载PDF
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 text-center mb-3">
+                                <div id="score-container" class="score-indicator">85</div>
+                                <h4>总体评分</h4>
+                                <p class="text-muted" id="assessment-time">评估时间: 2023-09-28 15:42</p>
+                            </div>
+                            <div class="col-md-8">
+                                <h5>评估结果汇总</h5>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span>正常指标 (4)</span>
+                                        <span>40%</span>
+                                    </div>
+                                    <div class="progress progress-slim">
+                                        <div class="progress-bar bg-success" style="width: 40%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span>轻度异常 (3)</span>
+                                        <span>30%</span>
+                                    </div>
+                                    <div class="progress progress-slim">
+                                        <div class="progress-bar bg-warning" style="width: 30%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span>中度异常 (2)</span>
+                                        <span>20%</span>
+                                    </div>
+                                    <div class="progress progress-slim">
+                                        <div class="progress-bar bg-orange" style="width: 20%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span>重度异常 (1)</span>
+                                        <span>10%</span>
+                                    </div>
+                                    <div class="progress progress-slim">
+                                        <div class="progress-bar bg-danger" style="width: 10%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 评估详情表格 -->
+        <div class="row" data-aos="fade-up" data-aos-delay="100">
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-list-ul me-2"></i>评估详情</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>体态问题</th>
+                                        <th>严重程度</th>
+                                        <th>原始分数</th>
+                                        <th>权重</th>
+                                        <th>加权分数</th>
+                                        <th>测量数据</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="assessment-details">
+                                    <!-- 这里会由JavaScript动态填充评估详情 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 体态问题与建议部分 -->
+        <div class="row" data-aos="fade-up" data-aos-delay="200">
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-comment-medical me-2"></i>问题解析与改善建议</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendations-container">
+                            <!-- 这里会由JavaScript动态填充建议内容 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- SweetAlert2 弹窗美化库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- AOS 滚动动画库 -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Chart.js 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf库, 用于生成PDF报告 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <script>
+        // 初始化AOS动画库
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+        
+        // 暗黑模式切换
+        document.getElementById('dark-mode-toggle').addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            const icon = this.querySelector('i');
+            if (document.body.classList.contains('dark-mode')) {
+                icon.classList.replace('fa-moon', 'fa-sun');
+            } else {
+                icon.classList.replace('fa-sun', 'fa-moon');
+            }
+        });
+        
+        // 页面加载完成后，从服务器获取评估数据
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAssessmentData();
+            
+            // 绑定打印按钮事件
+            document.getElementById('btn-print-report').addEventListener('click', function() {
+                window.print();
+            });
+            
+            // 绑定下载PDF按钮事件
+            document.getElementById('btn-download-report').addEventListener('click', function() {
+                generatePDF();
+            });
+        });
+        
+        // 从服务器加载评估数据
+        function loadAssessmentData() {
+            fetch('/get_assessment_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayAssessmentResults(data.result);
+                    } else {
+                        Swal.fire({
+                            title: '数据加载失败',
+                            text: data.message || '无法加载评估数据',
+                            icon: 'error'
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading assessment data:', error);
+                    Swal.fire({
+                        title: '数据加载错误',
+                        text: '无法从服务器获取评估数据',
+                        icon: 'error'
+                    });
+                });
+        }
+        
+        // 显示评估结果
+        function displayAssessmentResults(result) {
+            // 更新总分和评估时间
+            const scoreContainer = document.getElementById('score-container');
+            scoreContainer.textContent = result.total_score;
+            
+            // 根据总分设置不同的颜色
+            if (result.total_score < 50) {
+                scoreContainer.classList.add('score-low');
+            } else if (result.total_score < 70) {
+                scoreContainer.classList.add('score-medium');
+            } else {
+                scoreContainer.classList.add('score-high');
+            }
+            
+            // 更新评估时间
+            document.getElementById('assessment-time').textContent = '评估时间: ' + result.timestamp;
+            
+            // 统计各种严重程度的数量
+            const statusCounts = {
+                normal: 0,
+                mild: 0,
+                moderate: 0,
+                severe: 0
+            };
+            
+            // 清空详情表格
+            const detailsContainer = document.getElementById('assessment-details');
+            detailsContainer.innerHTML = '';
+            
+            // 清空建议容器
+            const recommendationsContainer = document.getElementById('recommendations-container');
+            recommendationsContainer.innerHTML = '';
+            
+            // 填充详情数据并统计各类问题
+            result.details.forEach(detail => {
+                // 根据状态设置颜色
+                let statusClass = 'text-success';
+                let statusText = '正常';
+                let statusKey = 'normal';
+                
+                if (detail.status === 'mild') {
+                    statusClass = 'text-warning';
+                    statusText = '轻度异常';
+                    statusKey = 'mild';
+                } else if (detail.status === 'moderate') {
+                    statusClass = 'text-orange';
+                    statusText = '中度异常';
+                    statusKey = 'moderate';
+                } else if (detail.status === 'severe') {
+                    statusClass = 'text-danger';
+                    statusText = '重度异常';
+                    statusKey = 'severe';
+                } else if (detail.status === 'missing_data') {
+                    statusClass = 'text-secondary';
+                    statusText = '数据不足';
+                } else if (detail.status === 'error') {
+                    statusClass = 'text-danger';
+                    statusText = '评估错误';
+                }
+                
+                // 更新计数
+                if (statusCounts[statusKey] !== undefined) {
+                    statusCounts[statusKey]++;
+                }
+                
+                // 格式化问题名称
+                const problemName = formatProblemName(detail.problem);
+                
+                // 构建测量数据显示
+                let measurementText = '--';
+                let rangeHtml = '';
+                
+                if (detail.measurement) {
+                    if (detail.measurement.angle !== undefined) {
+                        const angle = detail.measurement.angle;
+                        measurementText = `${angle.toFixed(1)}°`;
+                        
+                        // 为角度创建范围指示器
+                        rangeHtml = createRangeIndicator(angle, 0, 50, 30, 40, '过小', '正常', '过大');
+                        
+                    } else if (detail.measurement.diff_cm !== undefined) {
+                        const diff = detail.measurement.diff_cm;
+                        measurementText = `${diff.toFixed(1)} cm`;
+                        
+                        // 为高度差异创建范围指示器
+                        rangeHtml = createRangeIndicator(diff, 0, 5, 0, 1, '平衡', '正常', '偏差大');
+                        
+                    } else if (detail.measurement.tilt_cm !== undefined) {
+                        const tilt = detail.measurement.tilt_cm;
+                        measurementText = `${tilt.toFixed(1)} cm`;
+                        
+                        // 为倾斜创建范围指示器
+                        rangeHtml = createRangeIndicator(tilt, 0, 5, 0, 1, '平衡', '轻微', '明显');
+                        
+                    } else if (detail.measurement.gap_mm !== undefined) {
+                        const gap = detail.measurement.gap_mm;
+                        measurementText = `${gap.toFixed(1)} mm`;
+                        
+                        // 为间隙创建范围指示器
+                        rangeHtml = createRangeIndicator(gap, 0, 20, 0, 5, '无间隙', '正常', '间隙大');
+                        
+                    } else if (detail.measurement.difference_ratio !== undefined) {
+                        const ratio = detail.measurement.difference_ratio;
+                        const leftDist = detail.measurement.left_distance;
+                        const rightDist = detail.measurement.right_distance;
+                        
+                        // 获取倾斜方向
+                        let directionText = '平衡';
+                        let leanDirection = 'balanced';
+                        
+                        if (detail.lean_direction === 'left') {
+                            directionText = '左';
+                            leanDirection = 'left';
+                        } else if (detail.lean_direction === 'right') {
+                            directionText = '右';
+                            leanDirection = 'right';
+                        }
+                        
+                        measurementText = `${ratio.toFixed(1)}% (${directionText})`;
+                        
+                        // 为左右倾创建特殊指示器
+                        rangeHtml = `
+                            <div class="leaning-indicator leaning-${leanDirection}">
+                                <div class="leaning-base">
+                                    <div class="leaning-body"></div>
+                                    <div class="leaning-feet">
+                                        <div class="leaning-foot"></div>
+                                        <div class="leaning-foot"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="range-indicator">
+                                <div class="range-normal" style="left: 0%; width: 20%;"></div>
+                                <div class="range-value" style="left: ${Math.min(100, ratio * 5)}%;"></div>
+                                <div class="range-labels">
+                                    <span>平衡 (0%)</span>
+                                    <span>正常范围 (5%)</span>
+                                    <span>明显偏斜 (20%+)</span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small>左侧距离: ${leftDist.toFixed(1)}</small>
+                                <small>右侧距离: ${rightDist.toFixed(1)}</small>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // 添加描述信息（针对左右倾）
+                let descriptionText = '';
+                if (detail.description) {
+                    descriptionText = detail.description;
+                }
+                
+                // 添加行到表格
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${problemName}</td>
+                    <td class="${statusClass}">${statusText}</td>
+                    <td>${detail.score}</td>
+                    <td>${detail.weight}</td>
+                    <td>${detail.weighted_score}</td>
+                    <td>${measurementText}</td>
+                `;
+                detailsContainer.appendChild(row);
+                
+                // 如果不是正常状态，添加到建议部分
+                if (statusKey !== 'normal' && detail.status !== 'missing_data' && detail.status !== 'error') {
+                    const recommendationCard = document.createElement('div');
+                    recommendationCard.className = `card mb-3 assessment-item ${statusKey}`;
+                    
+                    const recommendation = getRecommendation(detail.problem, statusKey);
+                    
+                    // 构建测量信息和描述
+                    let measurementDisplay = `<span class="ms-2 fw-bold">测量值: ${measurementText}</span>`;
+                    if (descriptionText) {
+                        measurementDisplay += `<div class="text-${statusClass.replace('text-', '')} mt-2 fst-italic">${descriptionText}</div>`;
+                    }
+                    
+                    recommendationCard.innerHTML = `
+                        <div class="card-body">
+                            <h5 class="card-title d-flex align-items-center">
+                                <i class="fas fa-exclamation-circle me-2 text-${statusClass.replace('text-', '')}"></i>
+                                ${problemName}
+                            </h5>
+                            <div class="card-text mb-3">
+                                <span class="badge ${statusClass === 'text-orange' ? 'bg-warning' : statusClass.replace('text-', 'bg-')} mb-2">
+                                    ${statusText}
+                                </span>
+                                ${measurementDisplay}
+                                ${rangeHtml}
+                            </div>
+                            <h6 class="mt-3"><i class="fas fa-info-circle me-2"></i>问题描述:</h6>
+                            <p>${recommendation.description}</p>
+                            <h6 class="mt-3"><i class="fas fa-lightbulb me-2 text-warning"></i>改善建议:</h6>
+                            <ul class="list-group list-group-flush">
+                                ${recommendation.suggestions.map(suggestion => `
+                                    <li class="list-group-item bg-transparent border-0 ps-0">
+                                        <i class="fas fa-check-circle me-2 text-success"></i>${suggestion}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    
+                    recommendationsContainer.appendChild(recommendationCard);
+                }
+            });
+            
+            // 更新汇总统计
+            updateSummaryStats(statusCounts, result.details.length);
+        }
+        
+        // 更新汇总统计信息
+        function updateSummaryStats(counts, total) {
+            const progressBars = document.querySelectorAll('.progress-bar');
+            const countsTexts = document.querySelectorAll('.d-flex span:first-child');
+            const percentTexts = document.querySelectorAll('.d-flex span:last-child');
+            
+            const keys = ['normal', 'mild', 'moderate', 'severe'];
+            
+            keys.forEach((key, index) => {
+                const count = counts[key];
+                const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+                
+                // 更新进度条
+                progressBars[index].style.width = `${percent}%`;
+                
+                // 更新文本
+                countsTexts[index].textContent = `${formatStatusName(key)} (${count})`;
+                percentTexts[index].textContent = `${percent}%`;
+            });
+        }
+        
+        // 格式化状态名称
+        function formatStatusName(status) {
+            const nameMap = {
+                'normal': '正常指标',
+                'mild': '轻度异常',
+                'moderate': '中度异常',
+                'severe': '重度异常'
+            };
+            
+            return nameMap[status] || status;
+        }
+        
+        // 格式化问题名称为中文
+        function formatProblemName(problem) {
+            const problemMap = {
+                "head_forward_tilt": "头向前倾",
+                "thoracic_kyphosis": "胸脊柱后凸",
+                "flat_back": "平背",
+                "anterior_pelvic_tilt": "骨盆前倾",
+                "posterior_pelvic_tilt": "骨盆后倾",
+                "knee_hyperextension": "膝过伸",
+                "shoulder_drop": "肩下垂",
+                "shoulder_internal_rotation": "肩内旋",
+                "shoulder_external_rotation": "肩外旋",
+                "scoliosis": "脊柱侧弯",
+                "lateral_pelvic_tilt": "骨盆向侧方倾斜",
+                "pelvic_rotation": "骨盆旋转",
+                "foot_arch_abnormality": "足弓异常",
+                "jaw_asymmetry": "头下颌骨不对称",
+                "clavicle_asymmetry": "锁骨和其他关节不对称",
+                "hip_external_rotation": "髋外旋",
+                "hip_internal_rotation": "髋内旋",
+                "knee_valgus": "膝外翻",
+                "knee_varus": "膝内翻",
+                "tibial_external_rotation": "胫骨外旋",
+                "tibial_internal_rotation": "胫骨内旋",
+                "lateral_leaning": "身体左右倾斜"
+            };
+            
+            return problemMap[problem] || problem;
+        }
+        
+        // 获取问题的建议内容
+        function getRecommendation(problem, severity) {
+            // 针对不同问题和严重程度的建议库
+            const recommendationsLibrary = {
+                "head_forward_tilt": {
+                    description: "头向前倾是指头部相对于颈椎向前倾斜的姿势问题，可能由长时间低头看手机、电脑或不良的坐姿导致。",
+                    suggestions: [
+                        "保持正确的坐姿，电脑屏幕应与眼睛平齐",
+                        "定期进行颈部伸展运动",
+                        "使用符合人体工程学的座椅和工作台",
+                        "注意使用电子设备时的姿势，避免长时间低头"
+                    ]
+                },
+                "thoracic_kyphosis": {
+                    description: "胸脊柱后凸是指上背部过度弯曲，形成圆背或驼背的姿势问题，可能由不良姿势、肌肉失衡或结构性问题导致。",
+                    suggestions: [
+                        "练习胸部伸展和背部强化运动",
+                        "定期进行脊柱伸展运动",
+                        "注意日常坐姿和站姿",
+                        "使用合适的座椅支撑"
+                    ]
+                },
+                "lateral_leaning": {
+                    description: "身体左右倾斜是指身体重心明显偏向一侧，导致髋部中点与两脚构成的三角形不对称。这可能是由于长期不良姿势习惯、单侧负重或肌肉不平衡导致的。",
+                    suggestions: [
+                        "注意日常站立姿势，保持重心平衡",
+                        "加强核心肌群训练，特别是侧腹肌",
+                        "做平衡训练，如单腿站立或瑜伽平衡动作",
+                        "避免长时间单侧负重或偏向一侧的姿势",
+                        "进行身体两侧的对称性强化训练"
+                    ]
+                },
+                // 可以根据需要添加更多问题的建议
+            };
+            
+            // 如果没有特定问题的建议，返回通用建议
+            if (!recommendationsLibrary[problem]) {
+                return {
+                    description: "这是一个可能影响您体态和健康的问题。",
+                    suggestions: [
+                        "咨询专业的康复医师或物理治疗师获取个性化建议",
+                        "保持良好的日常姿势习惯",
+                        "定期进行针对性的锻炼",
+                        "避免长时间保持同一姿势"
+                    ]
+                };
+            }
+            
+            return recommendationsLibrary[problem];
+        }
+        
+        // 生成PDF报告
+        function generatePDF() {
+            const reportContent = document.querySelector('.container');
+            
+            // 配置PDF选项
+            const options = {
+                margin: 10,
+                filename: '体态分析报告.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            // 显示加载提示
+            Swal.fire({
+                title: '正在生成PDF',
+                text: '请稍候...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                    
+                    // 生成PDF
+                    html2pdf().from(reportContent).set(options).save().then(() => {
+                        Swal.close();
+                        
+                        Swal.fire({
+                            title: '成功',
+                            text: 'PDF报告已生成',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }).catch(error => {
+                        console.error('Error generating PDF:', error);
+                        
+                        Swal.fire({
+                            title: '生成失败',
+                            text: '无法生成PDF报告',
+                            icon: 'error'
+                        });
+                    });
+                }
+            });
+        }
+        
+        // 创建范围指示器
+        function createRangeIndicator(value, min, max, normalMin, normalMax, minLabel, normalLabel, maxLabel) {
+            // 计算正常范围在整个范围中的位置（百分比）
+            const normalMinPercent = ((normalMin - min) / (max - min)) * 100;
+            const normalWidth = ((normalMax - normalMin) / (max - min)) * 100;
+            
+            // 计算当前值在整个范围中的位置（百分比）
+            const valuePercent = ((value - min) / (max - min)) * 100;
+            
+            return `
+                <div class="range-indicator">
+                    <div class="range-normal" style="left: ${normalMinPercent}%; width: ${normalWidth}%;"></div>
+                    <div class="range-value" style="left: ${valuePercent}%;"></div>
+                    <div class="range-labels">
+                        <span>${minLabel} (${min})</span>
+                        <span>${normalLabel} (${normalMin}-${normalMax})</span>
+                        <span>${maxLabel} (${max}+)</span>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html> 

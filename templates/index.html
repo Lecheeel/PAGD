@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体态分析与步态检测系统</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Animate.css 动画库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- AOS 滚动动画库 -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 暗黑模式切换样式 -->
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #2E8B57;
+            --text-color: #333;
+            --bg-color: #f8f9fa;
+            --card-bg: #fff;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .dark-mode {
+            --primary-color: #00a86b;
+            --secondary-color: #2E8B57;
+            --text-color: #e0e0e0;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            box-shadow: var(--card-shadow);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        
+        /* 全屏倒计时覆盖层 */
+        .countdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .countdown-number {
+            font-size: 10rem;
+            color: white;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        .countdown-text {
+            font-size: 2rem;
+            color: white;
+            margin-top: 1rem;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* 深色模式切换按钮样式 */
+        #dark-mode-toggle {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--card-bg);
+            box-shadow: var(--card-shadow);
+            border: none;
+        }
+        
+        #dark-mode-toggle i {
+            font-size: 1.2rem;
+            color: var(--text-color);
+        }
+        
+        .dark-mode #dark-mode-toggle i {
+            color: #ffc107;
+        }
+        
+        /* 摄像头加载动画 */
+        .camera-loading-animation {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .camera-icon {
+            position: relative;
+            z-index: 2;
+            width: 60px;
+            height: 60px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .camera-wave {
+            position: absolute;
+            border: 2px solid var(--primary-color);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            opacity: 0;
+            animation: wave 2s ease-out infinite;
+        }
+        
+        .camera-wave:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+        
+        .camera-wave:nth-child(3) {
+            animation-delay: 1s;
+        }
+        
+        .camera-wave:nth-child(4) {
+            animation-delay: 1.5s;
+        }
+        
+        @keyframes wave {
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+        
+        .dark-mode .camera-icon {
+            background-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(0, 168, 107, 0.6);
+        }
+        
+        .dark-mode .camera-wave {
+            border-color: var(--primary-color);
+        }
+        
+        /* 加载步骤样式 */
+        .loading-progress-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .loading-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 33%;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+        
+        .loading-step.active {
+            opacity: 1;
+        }
+        
+        .loading-step.completed {
+            opacity: 1;
+        }
+        
+        .step-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .loading-step.active .step-dot {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px var(--primary-color);
+        }
+        
+        .loading-step.completed .step-dot::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 10px;
+        }
+        
+        .step-text {
+            font-size: 0.8rem;
+            text-align: center;
+            color: var(--text-color);
+        }
+        
+        /* 视频帧占位符动画 */
+        .video-frame-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(110deg, var(--bg-color) 30%, var(--card-bg) 50%, var(--bg-color) 70%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+            z-index: 1;
+            opacity: 0.7;
+        }
+        
+        @keyframes shimmer {
+            0% {
+                background-position: -100% 0;
+            }
+            100% {
+                background-position: 100% 0;
+            }
+        }
+        
+        /* 倒计时详情样式 */
+        .countdown-details {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            text-align: center;
+            max-width: 80%;
+        }
+    </style>
+    
+    <!-- 预加载关键函数，确保在DOM加载前就可用 -->
+    <script>
+        // 摄像头加载完成处理函数
+        function onCameraLoaded(cameraId) {
+            try {
+                const loadingElement = document.getElementById(`loading-animation-${cameraId}`);
+                const placeholder = document.querySelector(`#stream-container-${cameraId} .video-frame-placeholder`);
+                
+                if (loadingElement) {
+                    // 完成所有加载步骤
+                    const steps = loadingElement.querySelectorAll('.loading-step');
+                    steps.forEach(step => {
+                        step.classList.add('completed');
+                    });
+                    
+                    // 使用渐变动画隐藏加载元素和占位符
+                    loadingElement.style.opacity = '0';
+                    loadingElement.style.transition = 'opacity 0.5s ease';
+                }
+                
+                if (placeholder) {
+                    placeholder.style.opacity = '0';
+                    placeholder.style.transition = 'opacity 0.5s ease';
+                }
+                
+                // 一段时间后完全隐藏元素
+                setTimeout(() => {
+                    if (loadingElement) loadingElement.style.display = 'none';
+                    if (placeholder) placeholder.style.display = 'none';
+                }, 500);
+                
+                console.log(`摄像头 ${cameraId} 视频流加载完成`);
+                // 日志函数可能还没定义，等DOM加载完后再调用
+                if (typeof addLog === 'function') {
+                    addLog(`摄像头 ${cameraId} 视频流加载完成`, "success");
+                }
+            } catch (error) {
+                console.error(`摄像头 ${cameraId} 加载错误:`, error);
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- 全屏倒计时覆盖层（初始隐藏） -->
+    <div id="countdown" class="countdown-overlay" style="display: none; z-index: 10000;">
+        <div class="countdown-number animate__animated animate__pulse animate__infinite"></div>
+        <div class="countdown-text"></div>
+    </div>
+
+    <div class="mode-toggle position-fixed" style="top: 10px; right: 10px; z-index: 1000;">
+        <button class="btn btn-sm rounded-circle" id="dark-mode-toggle">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <header class="bg-dark text-white p-3 mb-4 animate__animated animate__fadeIn">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-walking me-2"></i>体态分析与步态检测系统</h1>
+                <span class="badge bg-success">在线</span>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12 mb-4" data-aos="fade-up">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title"><i class="fas fa-info-circle me-2"></i>系统状态</h2>
+                        <p class="card-text">实时体态检测与分析系统，通过多摄像头协同工作，提供高精度人体体态估计。</p>
+                        <div id="shutdown-message" class="alert alert-danger animate__animated animate__headShake" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>系统已关闭，请刷新页面重新启动。
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 体态分析与步态检测控制面板 -->
+            <div class="col-md-12 mb-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title"><i class="fas fa-chart-bar me-2"></i>体态分析与步态检测</h2>
+                        <div class="analysis-controls">
+                            <button id="start-analysis" class="btn btn-primary">
+                                <i class="fas fa-play-circle me-2"></i>开始分析
+                            </button>
+                            <button id="view-posture-report" class="btn btn-success ms-2" style="display: none;">
+                                <i class="fas fa-file-medical-alt me-2"></i>查看体态报告
+                            </button>
+                        </div>
+                        <div id="analysis-status" class="mt-3">
+                            <div id="status-message" class="alert alert-info" style="display: none;"></div>
+                            <div class="progress mt-3" style="display: none;" id="progress-container">
+                                <div id="progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <!-- 添加实时分析状态显示区域 -->
+                            <div id="analysis-realtime-info" class="mt-3 card bg-light" style="display: none;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="m-0"><i class="fas fa-chart-line me-2"></i>实时分析状态</h5>
+                                    <span id="analysis-time" class="badge bg-secondary">00:00</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <small class="text-muted">当前阶段:</small>
+                                                <div id="current-stage" class="fw-bold">准备中</div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <small class="text-muted">处理速度:</small>
+                                                <div id="processing-speed">0 帧/秒</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <small class="text-muted">检测到的关键点:</small>
+                                                <div id="keypoints-detected">0</div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <small class="text-muted">剩余时间:</small>
+                                                <div id="time-remaining">计算中...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row" data-aos="fade-up" data-aos-delay="200">
+            <!-- 摄像头1 -->
+            <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-video me-2"></i>摄像头 1
+                                </div>
+                                <div class="card-body">
+                                    <!-- 流式视频显示 (默认) -->
+                                    <div id="stream-container-1" style="position: relative;">
+                                        <div class="video-frame-placeholder"></div>
+                                        <div class="text-center py-4" id="loading-animation-1">
+                                            <div class="camera-loading-animation">
+                                                <div class="camera-icon">
+                                                    <i class="fas fa-video fa-2x"></i>
+                                                </div>
+                                                <div class="camera-wave"></div>
+                                                <div class="camera-wave"></div>
+                                                <div class="camera-wave"></div>
+                                            </div>
+                                            <p class="mt-3 animate__animated animate__pulse animate__infinite">正在加载视频流...</p>
+                                            <div class="loading-progress-container">
+                                                <div class="loading-step active">
+                                                    <div class="step-dot"></div>
+                                                    <div class="step-text">初始化摄像头</div>
+                                                </div>
+                                                <div class="loading-step">
+                                                    <div class="step-dot"></div>
+                                                    <div class="step-text">连接视频流</div>
+                                                </div>
+                                                <div class="loading-step">
+                                                    <div class="step-dot"></div>
+                                                    <div class="step-text">准备显示</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <img class="img-fluid rounded w-100" style="position: relative; z-index: 2;" src="{{ url_for('video_feed', camera_id=1) }}" alt="摄像头 1" onload="onCameraLoaded(1);">
+                                    </div>
+                                    
+                                    <!-- AJAX方式显示 (初始隐藏) -->
+                                    <div id="ajax-container-1" style="display: none;">
+                                        <img id="camera-feed-ajax-1" class="img-fluid rounded w-100" src="" alt="摄像头 1 (AJAX)">
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-flex justify-content-between">
+                                        <button class="btn btn-sm btn-outline-primary toggle-display-method" data-camera-id="1">
+                                            <i class="fas fa-sync-alt me-1"></i>切换到AJAX显示
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary toggle-ajax-stream" data-camera-id="1">
+                                            <i class="fas fa-play me-1"></i>启用AJAX更新
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger reset-camera" data-camera-id="1">
+                                            <i class="fas fa-redo-alt me-1"></i>重置摄像头
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+            </div>
+            <!-- 摄像头0 -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-video me-2"></i>摄像头 0
+                    </div>
+                    <div class="card-body">
+                        <!-- 流式视频显示 (默认) -->
+                        <div id="stream-container-0" style="position: relative;">
+                            <div class="video-frame-placeholder"></div>
+                            <div class="text-center py-4" id="loading-animation-0">
+                                <div class="camera-loading-animation">
+                                    <div class="camera-icon">
+                                        <i class="fas fa-video fa-2x"></i>
+                                    </div>
+                                    <div class="camera-wave"></div>
+                                    <div class="camera-wave"></div>
+                                    <div class="camera-wave"></div>
+                                </div>
+                                <p class="mt-3 animate__animated animate__pulse animate__infinite">正在加载视频流...</p>
+                                <div class="loading-progress-container">
+                                    <div class="loading-step active">
+                                        <div class="step-dot"></div>
+                                        <div class="step-text">初始化摄像头</div>
+                                    </div>
+                                    <div class="loading-step">
+                                        <div class="step-dot"></div>
+                                        <div class="step-text">连接视频流</div>
+                                    </div>
+                                    <div class="loading-step">
+                                        <div class="step-dot"></div>
+                                        <div class="step-text">准备显示</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <img class="img-fluid rounded w-100" style="position: relative; z-index: 2;" src="{{ url_for('video_feed', camera_id=0) }}" alt="摄像头 0" onload="onCameraLoaded(0);">
+                        </div>
+                        
+                        <!-- AJAX方式显示 (初始隐藏) -->
+                        <div id="ajax-container-0" style="display: none;">
+                            <img id="camera-feed-ajax-0" class="img-fluid rounded w-100" src="" alt="摄像头 0 (AJAX)">
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-sm btn-outline-primary toggle-display-method" data-camera-id="0">
+                                <i class="fas fa-sync-alt me-1"></i>切换到AJAX显示
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary toggle-ajax-stream" data-camera-id="0">
+                                <i class="fas fa-play me-1"></i>启用AJAX更新
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger reset-camera" data-camera-id="0">
+                                <i class="fas fa-redo-alt me-1"></i>重置摄像头
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <div class="row mb-4" data-aos="fade-up" data-aos-delay="300">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <i class="fas fa-terminal me-2"></i>系统日志
+                    </div>
+                    <div class="card-body">
+                        <div id="log-area" class="bg-light p-3 rounded font-monospace" style="height: 200px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="card-footer text-center">
+                        <button id="shutdown-system" class="btn btn-danger">
+                            <i class="fas fa-power-off me-2"></i>关闭系统
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- Bootstrap 5 JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery (仍被许多库依赖) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- SweetAlert2 弹窗美化库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- AOS (Animate On Scroll) 滚动动画库 -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- 自定义JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <script>
+        // 初始化AOS动画库
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+        
+        // 暗黑模式切换
+        document.getElementById('dark-mode-toggle').addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            const icon = this.querySelector('i');
+            if (document.body.classList.contains('dark-mode')) {
+                icon.classList.replace('fa-moon', 'fa-sun');
+            } else {
+                icon.classList.replace('fa-sun', 'fa-moon');
+            }
+        });
+        
+        // 在页面加载时启动摄像头加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            animateCameraLoading(0);
+            animateCameraLoading(1);
+        });
+        
+        // 摄像头加载动画
+        function animateCameraLoading(cameraId) {
+            const loadingElement = document.getElementById(`loading-animation-${cameraId}`);
+            const steps = loadingElement.querySelectorAll('.loading-step');
+            
+            let currentStep = 0;
+            
+            // 重置所有步骤状态
+            steps.forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            // 设置第一个步骤为激活状态
+            steps[0].classList.add('active');
+            
+            // 模拟加载过程
+            const animateSteps = () => {
+                setTimeout(() => {
+                    // 完成当前步骤
+                    steps[currentStep].classList.remove('active');
+                    steps[currentStep].classList.add('completed');
+                    currentStep++;
+                    
+                    if (currentStep < steps.length) {
+                        // 激活下一个步骤
+                        steps[currentStep].classList.add('active');
+                        animateSteps();
+                    }
+                }, 1500); // 每个步骤的延迟时间
+            };
+            
+            // 开始动画
+            animateSteps();
+        }
+        
+        // 显示倒计时函数
+        function showCountdown(seconds, message, detailsMessage = '') {
+            // 确保在显示倒计时之前，SweetAlert2弹窗已经关闭
+            if (Swal.isVisible()) {
+                Swal.close();
+            }
+            
+            const countdownElement = document.getElementById('countdown');
+            const numberElement = countdownElement.querySelector('.countdown-number');
+            const textElement = countdownElement.querySelector('.countdown-text');
+            
+            // 设置倒计时文本
+            textElement.textContent = message || '准备开始';
+            
+            // 添加详细提示信息的元素
+            if (detailsMessage) {
+                // 移除之前可能存在的详细信息元素
+                const existingDetails = countdownElement.querySelector('.countdown-details');
+                if (existingDetails) {
+                    existingDetails.remove();
+                }
+                
+                // 创建新的详细信息元素
+                const detailsElement = document.createElement('div');
+                detailsElement.className = 'countdown-details';
+                detailsElement.innerHTML = detailsMessage.replace(/\n/g, '<br>');
+                countdownElement.appendChild(detailsElement);
+            } else {
+                // 如果没有详细信息，移除可能存在的元素
+                const existingDetails = countdownElement.querySelector('.countdown-details');
+                if (existingDetails) {
+                    existingDetails.remove();
+                }
+            }
+            
+            // 显示倒计时覆盖层
+            countdownElement.style.display = 'flex';
+            
+            // 开始倒计时
+            let remainingSeconds = seconds;
+            
+            // 更新显示
+            const updateDisplay = () => {
+                numberElement.textContent = remainingSeconds;
+            };
+            
+            // 初始显示
+            updateDisplay();
+            
+            // 倒计时逻辑
+            const countdownInterval = setInterval(() => {
+                remainingSeconds--;
+                
+                if (remainingSeconds < 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.style.display = 'none';
+                    
+                    // 移除详细信息元素
+                    const existingDetails = countdownElement.querySelector('.countdown-details');
+                    if (existingDetails) {
+                        existingDetails.remove();
+                    }
+                } else {
+                    updateDisplay();
+                }
+            }, 1000);
+            
+            return countdownInterval;
+        }
+
+        // 显示全屏提示信息
+        function showFullScreenMessage(message, duration = 3000, type = 'info') {
+            const countdownElement = document.getElementById('countdown');
+            const numberElement = countdownElement.querySelector('.countdown-number');
+            const textElement = countdownElement.querySelector('.countdown-text');
+            
+            // 隐藏数字
+            numberElement.style.display = 'none';
+            
+            // 设置提示文本
+            textElement.textContent = message;
+            textElement.style.fontSize = '3rem';
+            
+            // 显示提示覆盖层
+            countdownElement.style.display = 'flex';
+            
+            // 设置定时器，在指定时间后隐藏提示
+            setTimeout(() => {
+                countdownElement.style.display = 'none';
+                numberElement.style.display = 'block';
+                textElement.style.fontSize = '2rem';
+            }, duration);
+        }
+        
+        // 分析计时器
+        let analysisTimer;
+        let analysisStartTime;
+        
+        function startAnalysisTimer() {
+            analysisStartTime = Date.now();
+            analysisTimer = setInterval(updateAnalysisTime, 1000);
+        }
+        
+        function updateAnalysisTime() {
+            const elapsedTime = Math.floor((Date.now() - analysisStartTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            
+            document.getElementById('analysis-time').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // 获取当前数据状态的函数
+        function getDataStatus() {
+            fetch('/get_data_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_recording) {
+                        document.getElementById('keypoints-detected').textContent = data.keypoints_count;
+                        document.getElementById('processing-speed').textContent = 
+                            Math.floor(data.keypoints_count / ((Date.now() - analysisStartTime) / 1000)) + " 帧/秒";
+                        
+                        // 如果有数据，定期刷新状态
+                        setTimeout(getDataStatus, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+        
+        // 美化开始分析按钮点击效果
+        document.getElementById('start-analysis').addEventListener('click', function() {
+            Swal.fire({
+                title: '准备开始分析',
+                text: '系统将开始体态分析与步态检测',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: '确认',
+                cancelButtonText: '取消'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // 添加日志
+                    addLog("用户确认开始分析", "info");
+                    
+                    // 显示倒计时，准备开始分析
+                    // 确保在使用showCountdown前已经关闭SweetAlert2弹窗
+                    setTimeout(function() {
+                        const countdownDetails = 
+                            "1. 倒计时结束后，系统将先采集您的静态体态\n" +
+                            "2. 按照提示完成静态体态和步态的数据采集\n" +
+                            "3. 全程请保持在摄像头视野范围内";
+                        showCountdown(3, "分析即将开始，请保持静止体态", countdownDetails);
+                    }, 300); // 短暂延迟确保SweetAlert2已完全关闭
+                    
+                    // 延迟启动分析，等待倒计时结束
+                    setTimeout(function() {
+                        // 显示实时分析状态区域
+                        document.getElementById('analysis-realtime-info').style.display = 'block';
+                        
+                        // 启动分析计时器
+                        startAnalysisTimer();
+                        
+                        // 开始获取数据状态
+                        getDataStatus();
+                        
+                        // 开始体态分析流程
+                        startPoseAnalysisProcess();
+                        
+                    }, 3800); // 给3秒倒计时多一点额外时间
+                }
+            });
+        });
+
+        // 体态分析流程
+        function startPoseAnalysisProcess() {
+            
+            // 添加日志
+            addLog("开始静态体态数据收集", "info");
+            updateStatusMessage("正在收集静态体态数据...", "info");
+            
+            // 更新当前阶段
+            document.getElementById('current-stage').textContent = "静态体态收集";
+            
+            // 调用后端API开始静态体态分析
+            fetch('/start_static_pose_analysis', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                addLog("后端已开始静态体态数据收集: " + data.message, "success");
+                
+                // 模拟保存关键点和图像帧的进度显示
+                simulateDataCollection(5, "关键点", function() {
+                    // 静态体态收集完成
+                    showFullScreenMessage("静态体态数据收集完成", 3000);
+                    addLog("静态体态数据收集完成", "success");
+                    
+                    // 显示3秒倒计时然后开始步态分析
+                    setTimeout(function() {
+                        const stepGaitDetails = 
+                            "1. 请在摄像头前自然行走，系统将记录您的步态\n" +
+                            "2. 尽量完整展示完整步态周期";
+                        showCountdown(3, "准备步态分析，请自然走两步", stepGaitDetails);
+                        
+                        // 3秒后显示步态分析提示
+                        setTimeout(function() {
+                            
+                            // 更新当前阶段
+                            document.getElementById('current-stage').textContent = "步态数据收集";
+                            addLog("开始步态数据收集", "info");
+                            updateStatusMessage("正在收集步态数据...", "info");
+                            
+                            // 调用后端API开始步态分析
+                            fetch('/start_gait_analysis', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                addLog("后端已开始步态数据收集: " + data.message, "success");
+                                
+                                // 模拟收集步态数据10秒
+                                simulateDataCollection(10, "步态", function() {
+                                    // 步态数据收集完成
+                                    showFullScreenMessage("步态数据收集完成", 3000);
+                                    addLog("步态数据收集完成", "success");
+                                    
+                                    // 调用后端API完成分析并保存数据
+                                    fetch('/complete_analysis', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        }
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.status === 'success') {
+                                            addLog("数据已成功保存: " + data.message, "success");
+                                            addLog("保存路径: " + data.saved_dir, "info");
+                                            
+                                            // 开始数据分析
+                                            setTimeout(function() {
+                                                addLog("开始体态分析处理", "info");
+                                                updateStatusMessage("正在处理收集的数据...", "info");
+                                                document.getElementById('current-stage').textContent = "数据分析中";
+                                                
+                                                // 启动后台体态分析计算
+                                                startBackendAnalysis();
+                                                
+                                                // 同时模拟前端进度显示
+                                                simulateAnalysisProgress();
+                                            }, 1000);
+                                        } else {
+                                            addLog("数据保存失败: " + data.message, "error");
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        addLog("保存数据时出错: " + error, "error");
+                                    });
+                                });
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                addLog("开始步态分析时出错: " + error, "error");
+                            });
+                        }, 3500);
+                    }, 3500);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addLog("开始静态体态分析时出错: " + error, "error");
+            });
+        }
+        
+        // 启动后台体态分析计算
+        function startBackendAnalysis() {
+            fetch('/analyze_posture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}) // 添加空JSON数据作为请求体
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP错误 ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    addLog("后台体态分析计算完成", "success");
+                    
+                    // 显示体态报告按钮
+                    $("#view-posture-report").show();
+                } else {
+                    addLog("后台体态分析计算失败: " + data.message, "error");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addLog("后台体态分析计算出错: " + error, "error");
+                
+                // 出错时也显示体态报告按钮（用于开发测试）
+                $("#view-posture-report").show();
+            });
+        }
+        
+        // 模拟数据收集过程（仅用于进度显示，实际数据由后端收集）
+        function simulateDataCollection(seconds, dataType, callback) {
+            let timeRemaining = seconds;
+            let progress = 0;
+            let totalFrames = seconds * 20; // 假设每秒20帧
+            let collectedFrames = 0;
+            
+            // 初始化进度条
+            updateProgressBar(0);
+            
+            const collectionInterval = setInterval(() => {
+                timeRemaining -= 0.1;
+                collectedFrames += 2;
+                progress = Math.min(100, (collectedFrames / totalFrames) * 100);
+                
+                // 更新进度条
+                updateProgressBar(progress);
+                
+                // 更新处理速度
+                const fps = Math.floor(15 + Math.random() * 10);
+                document.getElementById('processing-speed').textContent = `${fps} 帧/秒`;
+                
+                // 更新检测到的关键点
+                const keypoints = Math.floor(10 + Math.random() * 15);
+                document.getElementById('keypoints-detected').textContent = keypoints;
+                
+                // 更新剩余时间
+                document.getElementById('time-remaining').textContent = 
+                    timeRemaining > 0 ? `约 ${timeRemaining.toFixed(1)} 秒` : "即将完成";
+                
+                // 随机添加日志
+                if (Math.random() < 0.1) {
+                    addLog(`正在保存${dataType}数据，已收集${collectedFrames}帧`, "info");
+                }
+                
+                // 检查是否完成
+                if (timeRemaining <= 0) {
+                    clearInterval(collectionInterval);
+                    addLog(`${dataType}数据收集完成，共收集${collectedFrames}帧`, "success");
+                    
+                    if (callback) {
+                        callback();
+                    }
+                }
+            }, 100);
+        }
+        
+        // 模拟分析进度（在实际项目中，这应该由后端API提供真实数据）
+        function simulateAnalysisProgress() {
+            let progress = 0;
+            const stages = ["数据预处理", "体态特征提取", "步态模式分析", "异常检测", "结果生成"];
+            let currentStageIndex = 0;
+            let fps = 0;
+            let keypoints = 0;
+            
+            // 更新初始阶段
+            document.getElementById('current-stage').textContent = stages[currentStageIndex];
+            
+            const progressInterval = setInterval(() => {
+                // 更新进度
+                progress += Math.random() * 2;
+                if (progress > 100) progress = 100;
+                
+                updateProgressBar(progress);
+                
+                // 更新处理速度
+                fps = Math.floor(15 + Math.random() * 10);
+                document.getElementById('processing-speed').textContent = `${fps} 帧/秒`;
+                
+                // 更新检测到的关键点
+                keypoints = Math.floor(keypoints + Math.random() * 5);
+                document.getElementById('keypoints-detected').textContent = keypoints;
+                
+                // 更新剩余时间
+                const remainingPercent = 100 - progress;
+                const timeRemaining = Math.ceil(remainingPercent / 5);
+                document.getElementById('time-remaining').textContent = 
+                    timeRemaining > 0 ? `约 ${timeRemaining} 秒` : "即将完成";
+                
+                // 更新阶段
+                const newStageIndex = Math.min(Math.floor(progress / (100 / stages.length)), stages.length - 1);
+                if (newStageIndex !== currentStageIndex) {
+                    currentStageIndex = newStageIndex;
+                    document.getElementById('current-stage').textContent = stages[currentStageIndex];
+                    addLog(`进入${stages[currentStageIndex]}阶段`, "info");
+                }
+                
+                // 添加随机日志
+                if (Math.random() < 0.1) {
+                    const logMessages = [
+                        "正在处理静态体态数据",
+                        "检测关键点位置偏差",
+                        "分析体态稳定性",
+                        "计算步态节奏特征",
+                        "提取步态对称性指标"
+                    ];
+                    addLog(logMessages[Math.floor(Math.random() * logMessages.length)], "info");
+                }
+                
+                // 分析完成
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    clearInterval(analysisTimer);
+                    
+                    updateStatusMessage("分析已完成！", "success");
+                    addLog("体态分析与步态检测已完成", "success");
+                    
+                    // 显示完成状态
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: '分析完成',
+                            text: '体态分析与步态检测已成功完成',
+                            icon: 'success',
+                            confirmButtonText: '查看结果'
+                        }).then((result) => {
+                            if (result.isConfirmed && $("#view-posture-report").is(":visible")) {
+                                // 如果用户点击了"查看结果"，并且体态报告按钮已显示，则跳转至报告页面
+                                window.location.href = '/posture_report';
+                            }
+                        });
+                    }, 1000);
+                }
+            }, 500);
+        }
+        
+        // 美化系统关闭按钮
+        document.getElementById('shutdown-system').addEventListener('click', function() {
+            Swal.fire({
+                title: '确认关闭系统？',
+                text: '系统将停止所有分析和视频处理',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '确认关闭',
+                cancelButtonText: '取消'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // 这里保留原始的系统关闭逻辑
+                    // 假设原始代码中有一个shutdownSystem函数
+                    if (typeof shutdownSystem === 'function') {
+                        shutdownSystem();
+                    }
+                }
+            });
+        });
+        
+        // 更新状态消息的美化显示
+        function updateStatusMessage(message, type = 'info') {
+            const statusMessage = document.getElementById('status-message');
+            statusMessage.style.display = 'block';
+            statusMessage.textContent = message;
+            
+            // 移除所有已有的alert类
+            statusMessage.classList.remove('alert-info', 'alert-success', 'alert-warning', 'alert-danger');
+            
+            // 根据类型添加对应的alert类
+            switch(type) {
+                case 'success':
+                    statusMessage.classList.add('alert-success');
+                    break;
+                case 'warning':
+                    statusMessage.classList.add('alert-warning');
+                    break;
+                case 'error':
+                    statusMessage.classList.add('alert-danger');
+                    break;
+                default:
+                    statusMessage.classList.add('alert-info');
+            }
+        }
+        
+        // 更新进度条的美化显示
+        function updateProgressBar(progress) {
+            const progressBar = document.getElementById('progress');
+            const progressContainer = document.getElementById('progress-container');
+            
+            if (progress > 0) {
+                progressContainer.style.display = 'flex';
+                progressBar.style.width = progress + '%';
+                progressBar.setAttribute('aria-valuenow', progress);
+                
+                if (progress >= 100) {
+                    progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+                    progressBar.classList.add('bg-success');
+                } else {
+                    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                    progressBar.classList.remove('bg-success');
+                }
+            } else {
+                progressContainer.style.display = 'none';
+            }
+        }
+        
+        // 添加日志的美化显示
+        function addLog(message, type = 'info') {
+            const logArea = document.getElementById('log-area');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            logEntry.classList.add('log-entry', 'mb-1', 'animate__animated', 'animate__fadeIn');
+            
+            let icon, color;
+            switch(type) {
+                case 'success':
+                    icon = 'check-circle';
+                    color = 'text-success';
+                    break;
+                case 'warning':
+                    icon = 'exclamation-triangle';
+                    color = 'text-warning';
+                    break;
+                case 'error':
+                    icon = 'times-circle';
+                    color = 'text-danger';
+                    break;
+                default:
+                    icon = 'info-circle';
+                    color = 'text-info';
+            }
+            
+            logEntry.innerHTML = `<span class="text-secondary">[${timestamp}]</span> <i class="fas fa-${icon} ${color}"></i> ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 重置摄像头按钮事件处理
+        document.querySelectorAll('.reset-camera').forEach(button => {
+            button.addEventListener('click', function() {
+                const cameraId = this.getAttribute('data-camera-id');
+                
+                Swal.fire({
+                    title: `确认重置摄像头 ${cameraId}?`,
+                    text: '这将重新初始化摄像头视频流',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: '确认重置',
+                    cancelButtonText: '取消'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // 显示加载指示器
+                        Swal.fire({
+                            title: '正在重置摄像头...',
+                            text: '请稍候',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        
+                        // 调用重置摄像头API
+                        fetch(`/reset_camera/${cameraId}`, {
+                            method: 'POST'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                // 重新加载视频流
+                                const imgElement = document.querySelector(`#stream-container-${cameraId} img`);
+                                if (imgElement) {
+                                    // 添加时间戳来强制刷新图像源
+                                    const timestamp = new Date().getTime();
+                                    const currentSrc = imgElement.src.split('?')[0];
+                                    imgElement.src = `${currentSrc}?t=${timestamp}`;
+                                }
+                                
+                                // 显示加载动画
+                                const loadingElement = document.getElementById(`loading-animation-${cameraId}`);
+                                const placeholder = document.querySelector(`#stream-container-${cameraId} .video-frame-placeholder`);
+                                
+                                if (loadingElement) {
+                                    loadingElement.style.display = 'block';
+                                    loadingElement.style.opacity = '1';
+                                }
+                                
+                                if (placeholder) {
+                                    placeholder.style.display = 'block';
+                                    placeholder.style.opacity = '0.7';
+                                }
+                                
+                                // 重新开始摄像头加载动画
+                                animateCameraLoading(cameraId);
+                                
+                                // 添加日志
+                                addLog(`摄像头 ${cameraId} 已重置`, "info");
+                                
+                                Swal.fire({
+                                    title: '重置成功',
+                                    text: `摄像头 ${cameraId} 已重新初始化`,
+                                    icon: 'success',
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: '重置失败',
+                                    text: data.message,
+                                    icon: 'error'
+                                });
+                                
+                                // 添加日志
+                                addLog(`摄像头 ${cameraId} 重置失败: ${data.message}`, "error");
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire({
+                                title: '重置失败',
+                                text: '发生错误，请查看控制台获取详情',
+                                icon: 'error'
+                            });
+                            
+                            // 添加日志
+                            addLog(`摄像头 ${cameraId} 重置出错: ${error}`, "error");
+                        });
+                    }
+                });
+            });
+        });
+
+        // 定期检查摄像头状态，如果检测到错误超过阈值，提示用户重置
+        function checkCameraStatus() {
+            fetch('/get_data_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.camera_errors) {
+                        for (const [camId, errorCount] of Object.entries(data.camera_errors)) {
+                            if (errorCount > 5) {
+                                // 如果错误超过阈值，显示提示
+                                if (!document.getElementById(`camera-error-alert-${camId}`)) {
+                                    const alertDiv = document.createElement('div');
+                                    alertDiv.id = `camera-error-alert-${camId}`;
+                                    alertDiv.className = 'alert alert-warning mt-2 animate__animated animate__fadeIn';
+                                    alertDiv.innerHTML = `
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        检测到摄像头 ${camId} 视频流异常，建议 
+                                        <button class="btn btn-sm btn-warning reset-camera-inline" data-camera-id="${camId}">
+                                            <i class="fas fa-redo-alt me-1"></i>重置摄像头
+                                        </button>
+                                    `;
+                                    
+                                    // 获取对应的摄像头容器并添加警告
+                                    const container = document.getElementById(`stream-container-${camId}`);
+                                    if (container) {
+                                        container.appendChild(alertDiv);
+                                        
+                                        // 为内联重置按钮添加事件处理
+                                        const resetBtn = alertDiv.querySelector('.reset-camera-inline');
+                                        if (resetBtn) {
+                                            resetBtn.addEventListener('click', function() {
+                                                document.querySelector(`.reset-camera[data-camera-id="${camId}"]`).click();
+                                            });
+                                        }
+                                    }
+                                    
+                                    // 添加日志
+                                    addLog(`检测到摄像头 ${camId} 视频流异常 (${errorCount} 个错误)`, "warning");
+                                }
+                            } else {
+                                // 如果错误减少，移除提示
+                                const alertDiv = document.getElementById(`camera-error-alert-${camId}`);
+                                if (alertDiv) {
+                                    alertDiv.classList.add('animate__fadeOut');
+                                    setTimeout(() => {
+                                        if (alertDiv.parentNode) {
+                                            alertDiv.parentNode.removeChild(alertDiv);
+                                        }
+                                    }, 500);
+                                }
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking camera status:', error);
+                });
+            
+            // 每5秒检查一次
+            setTimeout(checkCameraStatus, 5000);
+        }
+        
+        // 页面加载后开始检查摄像头状态
+        document.addEventListener('DOMContentLoaded', function() {
+            // ... existing code ...
+            
+            // 开始检查摄像头状态
+            setTimeout(checkCameraStatus, 5000);  // 延迟5秒后开始检查，给系统启动时间
+        });
+
+        // 体态评估相关功能已移至新的页面，删除相关代码
+        $(document).ready(function() {
+            // 绑定体态报告按钮事件
+            $("#view-posture-report").click(function() {
+                // 跳转到体态报告页面
+                window.location.href = '/posture_report';
+            });
+            
+            // 其他初始化代码...
+        });
+    </script>
+</body>
+</html> 
