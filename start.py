@@ -13,6 +13,9 @@ import time
 import webbrowser
 import socket
 import platform
+import requests
+from requests.exceptions import ConnectionError
+
 def check_port_available(port):
     """检查端口是否可用"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,7 +31,7 @@ def check_port_available(port):
 
 def check_requirements():
     """检查必要的依赖是否已安装"""
-    required_packages = ["flask", "numpy", "torch"]
+    required_packages = ["flask", "numpy", "torch", "requests"]
     missing_packages = []
     
     for package in required_packages:
@@ -49,6 +52,27 @@ def check_requirements():
             
     return True
 
+def check_server_ready(url, max_retries=20, retry_interval=1):
+    """检查服务器是否已准备好接受请求"""
+    print(f"等待服务启动完成...")
+    for i in range(max_retries):
+        try:
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200:
+                print(f"服务已启动完成，耗时 {i * retry_interval} 秒")
+                return True
+        except ConnectionError:
+            pass
+        except Exception as e:
+            print(f"检查服务状态时出错: {str(e)}")
+        
+        time.sleep(retry_interval)
+        sys.stdout.write(".")
+        sys.stdout.flush()
+    
+    print(f"\n[警告] 服务启动超时，已尝试 {max_retries * retry_interval} 秒")
+    return False
+
 def main():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='姿态分析与步态检测系统启动脚本')
@@ -59,6 +83,7 @@ def main():
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Web服务主机地址')
     parser.add_argument('--no-browser', action='store_true', help='不自动打开浏览器')
     parser.add_argument('--debug', action='store_true', help='启用调试模式')
+    parser.add_argument('--wait-ready', action='store_true', default=True, help='等待服务完全就绪后再打开浏览器')
     
     args = parser.parse_args()
     
@@ -120,16 +145,25 @@ def main():
         else:
             p = subprocess.Popen(cmd)
         
-        # 等待服务启动
-        time.sleep(3)
-        
         # 自动打开浏览器
         if not args.no_browser:
             # 使用localhost替代0.0.0.0作为访问地址
             browser_host = "localhost" if args.host == "0.0.0.0" else args.host
             url = f"http://{browser_host}:{args.port}"
-            print(f"在浏览器中打开: {url}")
-            webbrowser.open(url)
+            
+            if args.wait_ready:
+                # 等待服务器完全启动
+                server_ready = check_server_ready(url)
+                if server_ready:
+                    print(f"在浏览器中打开: {url}")
+                    webbrowser.open(url)
+                else:
+                    print(f"服务启动超时，请手动在浏览器中访问: {url}")
+            else:
+                # 原来的行为：等待固定时间后打开浏览器
+                time.sleep(3)
+                print(f"在浏览器中打开: {url}")
+                webbrowser.open(url)
         
         print("系统已启动。按 Ctrl+C 停止...")
         p.wait()
