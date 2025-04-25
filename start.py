@@ -125,7 +125,9 @@ def main():
         
         # 自动打开浏览器
         if not args.no_browser:
-            url = f"http://{args.host}:{args.port}"
+            # 使用localhost替代0.0.0.0作为访问地址
+            browser_host = "localhost" if args.host == "0.0.0.0" else args.host
+            url = f"http://{browser_host}:{args.port}"
             print(f"在浏览器中打开: {url}")
             webbrowser.open(url)
         
